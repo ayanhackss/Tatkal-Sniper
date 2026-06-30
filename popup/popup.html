@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tatkal Sniper Dashboard</title>
+  <link rel="stylesheet" href="popup.css">
+  <!-- Fix #8: Preconnect for perf + font-display swap; full offline fallback stack in CSS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="glass-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-area">
+        <img src="../assets/icon48.png" alt="Tatkal Sniper Logo" class="logo-icon-img">
+        <h1 class="logo-text">Tatkal<span>Sniper</span></h1>
+        <span class="version-tag" id="versionTag"></span>
+      </div>
+      <div class="status-badge" id="statusBadge" aria-live="polite">Inactive</div>
+    </header>
+
+    <!-- Tatkal Countdown Timer -->
+    <div class="countdown-bar" id="countdownBar" aria-live="polite" aria-label="Tatkal countdown timer">
+      <div class="countdown-left">
+        <span class="countdown-icon">⚡</span>
+        <span class="countdown-label" id="countdownLabel">Tatkal opens in</span>
+      </div>
+      <div class="countdown-digits" id="countdownDigits">--:--:--</div>
+      <div class="countdown-right">
+        <span class="countdown-type" id="countdownType">AC 10:00</span>
+      </div>
+    </div>
+    <!-- Clock Sync Warning -->
+    <div class="clock-warning" id="clockWarning" style="display:none;" role="alert">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm0-4h-2V7h2v8z"/></svg>
+      <span id="clockWarningText">System clock may be off — check time sync!</span>
+    </div>
+
+    <!-- Fix #7: Navigation Tabs with full ARIA tablist -->
+    <nav class="tabs-nav" role="tablist" aria-label="Dashboard Sections">
+      <button class="tab-btn active" data-tab="credentials" role="tab" aria-selected="true" aria-controls="credentialsTab" id="tab-credentials">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        Login
+      </button>
+      <button class="tab-btn" data-tab="journey" role="tab" aria-selected="false" aria-controls="journeyTab" id="tab-journey">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 16c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/></svg>
+        Journey
+      </button>
+      <button class="tab-btn" data-tab="passengers" role="tab" aria-selected="false" aria-controls="passengersTab" id="tab-passengers">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.83 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Passengers
+      </button>
+      <button class="tab-btn" data-tab="preferences" role="tab" aria-selected="false" aria-controls="preferencesTab" id="tab-preferences">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Settings
+      </button>
+      <button class="tab-btn" data-tab="tips" role="tab" aria-selected="false" aria-controls="tipsTab" id="tab-tips">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 18h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.25z"/></svg>
+        Tips
+      </button>
+    </nav>
+
+    <!-- Form Content -->
+    <main class="content-body">
+      <!-- Section 1: Credentials -->
+      <section id="credentialsTab" class="tab-panel active" role="tabpanel" aria-labelledby="tab-credentials">
+        <h2 class="panel-title">IRCTC Credentials</h2>
+        <!-- Fix #1: Security notice -->
+        <div class="security-notice" role="note">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l5 2.18V11c0 3.5-2.33 6.79-5 7.93C9.33 17.79 7 14.5 7 11V7.18L12 5z"/></svg>
+          Stored locally &amp; unencrypted in your browser. Do not use on shared computers.
+        </div>
+
+        <div class="input-group">
+          <label for="username">IRCTC Username</label>
+          <input type="text" id="username" placeholder="Enter username" autocomplete="off" aria-required="true" aria-describedby="username-error">
+          <span class="field-error" id="username-error" role="alert" aria-live="assertive"></span>
+        </div>
+        
+        <div class="input-group">
+          <label for="password">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="password" placeholder="Enter password" autocomplete="off" aria-required="true" aria-describedby="password-error">
+            <button type="button" class="toggle-password" id="togglePasswordBtn" aria-label="Toggle password visibility">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="eye-icon" aria-hidden="true"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </button>
+          </div>
+          <span class="field-error" id="password-error" role="alert" aria-live="assertive"></span>
+        </div>
+      </section>
+
+      <!-- Section 2: Journey -->
+      <section id="journeyTab" class="tab-panel" role="tabpanel" aria-labelledby="tab-journey">
+        <h2 class="panel-title">Journey Details</h2>
+        <p class="panel-desc">Configure your source, destination, date, class, and booking quota.</p>
+
+        <!-- Fix #5: Stale date warning placeholder -->
+        <div class="stale-date-warning" id="staleDateWarning" style="display:none;" role="alert">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm0-4h-2V7h2v8z"/></svg>
+          Saved journey date has passed — please update it.
+        </div>
+
+        <div class="row-grid">
+          <div class="input-group">
+            <label for="fromStation">From Station Code</label>
+            <input type="text" id="fromStation" placeholder="e.g. NDLS" style="text-transform: uppercase;" aria-required="true" aria-describedby="from-error" maxlength="5">
+            <span class="field-error" id="from-error" role="alert" aria-live="assertive"></span>
+          </div>
+          <div class="input-group">
+            <label for="toStation">To Station Code</label>
+            <input type="text" id="toStation" placeholder="e.g. HWH" style="text-transform: uppercase;" aria-required="true" aria-describedby="to-error" maxlength="5">
+            <span class="field-error" id="to-error" role="alert" aria-live="assertive"></span>
+          </div>
+        </div>
+
+        <div class="row-grid">
+          <div class="input-group">
+            <label for="journeyDate">Journey Date</label>
+            <input type="date" id="journeyDate" aria-required="true" aria-describedby="date-error">
+            <span class="field-error" id="date-error" role="alert" aria-live="assertive"></span>
+          </div>
+          <div class="input-group">
+            <label for="trainNumber">Train Number (Optional)</label>
+            <input type="text" id="trainNumber" placeholder="e.g. 12860" maxlength="5">
+          </div>
+        </div>
+
+        <div class="row-grid">
+          <div class="input-group">
+            <label for="journeyClass">Class</label>
+            <select id="journeyClass">
+              <option value="ALL">All Classes</option>
+              <option value="1A">AC First Class (1A)</option>
+              <option value="2A">AC 2 Tier (2A)</option>
+              <option value="3A" selected>AC 3 Tier (3A)</option>
+              <option value="3E">AC 3 Economy (3E)</option>
+              <option value="CC">AC Chair Car (CC)</option>
+              <option value="SL">Sleeper (SL)</option>
+              <option value="2S">Second Sitting (2S)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label for="journeyQuota">Quota</label>
+            <select id="journeyQuota">
+              <option value="GENERAL" selected>GENERAL</option>
+              <option value="TATKAL">TATKAL</option>
+              <option value="PREMIUM_TATKAL">PREMIUM TATKAL</option>
+              <option value="LADIES">LADIES</option>
+              <option value="LOWER_BERTH">LOWER BERTH/SR. CITIZEN</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: Passengers -->
+      <section id="passengersTab" class="tab-panel" role="tabpanel" aria-labelledby="tab-passengers">
+        <div class="passenger-header">
+          <h2 class="panel-title">Passenger Details</h2>
+          <button type="button" class="btn-secondary" id="addPassengerBtn" aria-label="Add a new passenger">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Add Passenger
+          </button>
+        </div>
+        <p class="panel-desc">Manage the passenger checklist. Maximum 6 passengers are allowed per booking.</p>
+        <span class="field-error" id="passengers-error" role="alert" aria-live="assertive"></span>
+
+        <!-- Passengers Container -->
+        <div class="passengers-list" id="passengersContainer" aria-label="Passenger list">
+          <!-- Dynamic passenger rows will be injected here -->
+        </div>
+      </section>
+
+      <!-- Section 4: Preferences -->
+      <section id="preferencesTab" class="tab-panel" role="tabpanel" aria-labelledby="tab-preferences">
+        <h2 class="panel-title">Preferences &amp; Quick Settings</h2>
+        <p class="panel-desc">Configure autofill options and booking preferences.</p>
+
+        <div class="input-group">
+          <label for="mobileNumber">Passenger Mobile Number</label>
+          <input type="tel" id="mobileNumber" placeholder="10-digit mobile number" maxlength="10" aria-required="true" aria-describedby="mobile-error">
+          <span class="field-error" id="mobile-error" role="alert" aria-live="assertive"></span>
+        </div>
+
+        <div class="input-group">
+          <label for="preferredPayment">Preferred Payment Gateway</label>
+          <select id="preferredPayment">
+            <option value="UPI" selected>BHIM / UPI (Instant Payment)</option>
+            <option value="IPAY">IRCTC iPay (Credit Card/Debit Card/UPI)</option>
+            <option value="EWALLET">E-Wallet (Instant Payment)</option>
+            <option value="MULTIPLE">Multiple Payment Service</option>
+            <option value="NETBANKING">Netbanking</option>
+            <option value="GATEWAY">Payment Gateway / Credit Card / Debit Card</option>
+            <option value="WALLETS">Wallets / Cash Card</option>
+            <option value="EMI">EMI</option>
+            <option value="LOYALTY">Loyalty Redemption Booking</option>
+          </select>
+        </div>
+
+        <div class="input-group">
+          <label for="travelInsurance">Auto-Select Travel Insurance</label>
+          <select id="travelInsurance">
+            <option value="YES" selected>Yes, opt-in for Travel Insurance (Highly Recommended)</option>
+            <option value="NO">No, do not opt-in for Travel Insurance</option>
+          </select>
+        </div>
+
+        <div class="checkbox-container">
+          <label class="custom-checkbox">
+            <input type="checkbox" id="autoUpgrade">
+            <span class="checkmark"></span>
+            <span class="label-text">Consider for Auto Upgradation</span>
+          </label>
+        </div>
+
+        <div class="checkbox-container">
+          <label class="custom-checkbox">
+            <input type="checkbox" id="confirmBerthsOnly">
+            <span class="checkmark"></span>
+            <span class="label-text">Book only if confirm berths are allotted</span>
+          </label>
+        </div>
+
+        <div class="checkbox-container">
+          <label class="custom-checkbox">
+            <input type="checkbox" id="autoFocusCaptcha" checked>
+            <span class="checkmark"></span>
+            <span class="label-text">Auto-focus Captcha input on login (Recommended)</span>
+          </label>
+        </div>
+
+        <!-- Scheduled Auto-Launch -->
+        <div class="schedule-section">
+          <div class="schedule-header">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+            Scheduled Auto-Launch
+          </div>
+          <p class="schedule-desc">Automatically open IRCTC and start booking at a set time.</p>
+          <div class="schedule-row">
+            <input type="time" id="scheduledTime" step="1" aria-label="Scheduled launch time">
+            <button class="btn-schedule" id="scheduleBtn" aria-label="Set scheduled launch">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+              Set Alarm
+            </button>
+            <button class="btn-schedule-cancel" id="scheduleCancelBtn" style="display:none;" aria-label="Cancel scheduled launch">
+              ✕ Cancel
+            </button>
+          </div>
+          <div class="schedule-status" id="scheduleStatus" style="display:none;"></div>
+        </div>
+
+        <!-- Pre-Booking Reminder -->
+        <div class="checkbox-container">
+          <label class="custom-checkbox">
+            <input type="checkbox" id="preBookingReminder">
+            <span class="checkmark"></span>
+            <span class="label-text">Remind me 10 min before Tatkal opens (desktop notification)</span>
+          </label>
+        </div>
+
+        <!-- Auto-trigger at countdown zero -->
+        <div class="checkbox-container">
+          <label class="custom-checkbox">
+            <input type="checkbox" id="autoTriggerAtOpen">
+            <span class="checkmark"></span>
+            <span class="label-text">Auto-start booking when Tatkal window opens</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Section 5: Tips & Tricks -->
+      <section id="tipsTab" class="tab-panel" role="tabpanel" aria-labelledby="tab-tips">
+        <h2 class="panel-title">Tatkal Speed Hacks &amp; Guide</h2>
+        <p class="panel-desc">Optimize your IRCTC Tatkal bookings and secure confirmed seats.</p>
+        
+        <div class="tips-container">
+          <div class="tip-card">
+            <div class="tip-card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#10b981" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              Quick Start Guide
+            </div>
+            <ol class="tips-list">
+              <li>Open this popup and enter your <strong>IRCTC Username &amp; Password</strong> under Login.</li>
+              <li>Fill in <strong>Journey details</strong> (From/To, Date, Class &amp; Quota) and your <strong>Passengers list</strong>.</li>
+              <li>Click <strong>Save Details</strong> to save securely on your local browser.</li>
+              <li>Click <strong>Start Auto-Booking</strong>. The extension helper console will appear at the bottom of the IRCTC website to guide and auto-fill your forms.</li>
+            </ol>
+          </div>
+
+          <div class="tip-card warning">
+            <div class="tip-card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#f59e0b" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm0-4h-2V7h2v8z"/></svg>
+              Essential Tatkal Timings
+            </div>
+            <ul class="tips-list">
+              <li><strong>AC Classes (3A, 2A, 1A, 3E, CC)</strong>: Booking opens daily at <strong>10:00 AM</strong>.</li>
+              <li><strong>Non-AC Classes (SL, 2S)</strong>: Booking opens daily at <strong>11:00 AM</strong>.</li>
+              <li>Log in exactly <strong>1 to 2 minutes before</strong> (09:58 AM or 10:58 AM) to avoid session timeout.</li>
+            </ul>
+          </div>
+
+          <div class="tip-card info">
+            <div class="tip-card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#3b82f6" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              Tatkal Speed Hacks
+            </div>
+            <ul class="tips-list font-sm">
+              <li>⚡ <strong>Auto-Focus Captcha</strong>: Instantly type the Captcha when focused and press <strong>Enter</strong> to submit. No mouse clicks needed!</li>
+              <li>💳 <strong>Sub-Second Payment</strong>: Choose <strong>BHIM/UPI</strong> as the preferred payment method. Open your UPI app on your phone beforehand to approve the request instantly.</li>
+              <li>👥 <strong>Limit Passengers</strong>: Book for 1-2 passengers at a time. Injecting details for larger groups takes slightly longer.</li>
+              <li>🛡️ <strong>Insurance Skip</strong>: Ensure Travel Insurance is pre-configured to automatically select Yes/No and bypass the check.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Actions -->
+    <footer class="footer">
+      <button class="btn-save" id="saveBtn" aria-label="Save all details to browser storage">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        Save Details
+      </button>
+      <button class="btn-primary" id="startBookingBtn" aria-label="Save and start auto-booking on IRCTC">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21 12l-8.15-8.15-1.42 1.42L16.86 11H5v2z"/></svg>
+        Start Auto-Booking
+      </button>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast" role="status" aria-live="polite">Details saved successfully!</div>
+  </div>
+
+  <!-- Fix #9: Booking Confirmation Modal -->
+  <div class="modal-overlay" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v8z"/></svg>
+        <h2 id="modal-title">Confirm Auto-Booking</h2>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Summary is injected here by JS -->
+      </div>
+      <div class="modal-actions">
+        <button class="btn-save modal-cancel" id="modalCancelBtn" aria-label="Cancel booking">Cancel</button>
+        <button class="btn-primary modal-confirm" id="modalConfirmBtn" aria-label="Confirm and start booking">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21 12l-8.15-8.15-1.42 1.42L16.86 11H5v2z"/></svg>
+          Proceed
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
