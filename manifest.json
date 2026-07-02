@@ -3,7 +3,7 @@
 
   "manifest_version": 3,
   "name": "Tatkal Sniper: IRCTC Booking Helper",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Pre-fill login credentials, search details, passenger lists, and mobile numbers for rapid train ticket booking on IRCTC.",
   "permissions": [
     "storage",

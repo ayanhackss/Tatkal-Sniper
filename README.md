@@ -1,4 +1,4 @@
-# Tatkal Sniper
+# Tatkal Sniper v1.2.0
 
 **WARNING: This project is strictly for educational demonstration purposes only. It is intended to showcase browser automation and DOM manipulation techniques. Any use of this tool for actual ticket booking or commercial purposes is strongly discouraged and may violate the terms of service of the target website.**
 
@@ -9,9 +9,12 @@ The extension works by securely storing your travel details, passenger informati
 ## Key Features
 * Automated Login: Pre-fills your IRCTC user ID and password.
 * Journey Search Autofill: Automatically inputs the origin station, destination station, journey date, and quota.
-* Passenger Details: Automatically adds passenger rows and fills in the name, age, gender, berth preference, and food choice.
+* Passenger Details: Automatically adds passenger rows and fills in the name, age, gender, berth preference, and food choice (now directly bypassing the autocomplete panel for maximum speed).
 * Payment Selection: Auto-selects your preferred payment method (such as UPI or Net Banking) on the payment page.
 * Circuit Breaker: Includes fail-safe mechanisms to halt automation if the session expires or if a payment fails, preventing loops.
+* Captcha Auto-Focus & Highlight: Instantly focuses on the captcha input fields on the login and review pages, applying a pulsing visual ring to ensure you never lose focus.
+* Live Speed Analytics & Atomic Clock: Tracks the exact time taken to bypass each page and displays an active IRCTC server latency monitor directly in the extension popup.
+* Ghost Mode (Human Emulation): Simulates human-like character-by-character typing with natural delays to prevent bot detection while filling forms.
 
 ## Installation Instructions
 1. Clone or download this repository to your local machine.

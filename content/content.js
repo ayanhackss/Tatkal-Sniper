@@ -15,6 +15,9 @@
   let tatkalExpressConfig = null;
   let teSignInTimeout = null;
 
+  // Live Speed Analytics — timestamps per stage
+  let teTimings = { startTime: null, loginDone: null, searchDone: null, passengerDone: null, reviewDone: null };
+
   try {
     if (isContextValid()) {
       const state = await chrome.storage.local.get(['tatkalExpressActive', 'tatkalExpressConfig']);
@@ -252,6 +255,17 @@
         cursor: pointer;
         font-weight: bold;
       }
+      /* Captcha focus ring */
+      .te-captcha-ring {
+        outline: 3px solid #f97316 !important;
+        outline-offset: 2px !important;
+        box-shadow: 0 0 0 5px rgba(249,115,22,0.25) !important;
+        animation: te-captcha-pulse 1s ease-in-out infinite !important;
+      }
+      @keyframes te-captcha-pulse {
+        0%, 100% { box-shadow: 0 0 0 5px rgba(249,115,22,0.25); }
+        50% { box-shadow: 0 0 0 9px rgba(249,115,22,0.08); }
+      }
     `;
     document.head.appendChild(style);
   };
@@ -452,7 +466,9 @@
   // State Management Triggers
   const activateExtension = async () => {
     tatkalExpressActive = true;
-    await chrome.storage.local.set({ tatkalExpressActive: true });
+    // Reset timings on each fresh activation
+    teTimings = { startTime: Date.now(), loginDone: null, searchDone: null, passengerDone: null, reviewDone: null };
+    await chrome.storage.local.set({ tatkalExpressActive: true, teTimings });
     updateConsoleContent();
     triggerAutoActions();
   };
@@ -493,13 +509,15 @@
   };
 
   // Helper: Autofill an input field compatible with Angular two-way binding
-  const fillAngularInput = (inputEl, value) => {
+  // Supports Ghost Mode: types character-by-character with random delays to emulate human input
+  const fillAngularInput = async (inputEl, value) => {
     if (!inputEl) return;
-    inputEl.focus();
+    const ghostMode = tatkalExpressConfig && tatkalExpressConfig.preferences && tatkalExpressConfig.preferences.ghostMode;
 
+    inputEl.focus();
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
 
-    // Step 1: Clear the field first so Angular detects a real change even if value is the same
+    // Step 1: Clear the field
     if (nativeInputValueSetter) {
       nativeInputValueSetter.call(inputEl, '');
     } else {
@@ -507,20 +525,32 @@
     }
     inputEl.dispatchEvent(new Event('input', { bubbles: true }));
 
-    // Step 2: Set the new value
-    if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(inputEl, value);
+    if (ghostMode) {
+      // Type each character with a randomised 20-60ms delay
+      for (const char of String(value)) {
+        const current = inputEl.value;
+        const next = current + char;
+        if (nativeInputValueSetter) {
+          nativeInputValueSetter.call(inputEl, next);
+        } else {
+          inputEl.value = next;
+        }
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 20 + Math.random() * 40));
+      }
     } else {
-      inputEl.value = value;
+      // Bulk set (fast mode)
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(inputEl, value);
+      } else {
+        inputEl.value = value;
+      }
     }
 
     inputEl.dispatchEvent(new Event('input', { bubbles: true }));
     inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-
-    // Dispatch Enter key events to force custom controls (like calendars/dropdowns) to parse and save
     inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
     inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-
     inputEl.dispatchEvent(new Event('blur', { bubbles: true }));
   };
 
@@ -903,8 +933,10 @@
 
     // Auto-focus and highlight captcha for extremely rapid manual entry
     if (captchaInput && (!tatkalExpressConfig || tatkalExpressConfig.preferences?.autoFocusCaptcha !== false)) {
-      if (!captchaInput.classList.contains('te-highlight')) {
-        captchaInput.classList.add('te-highlight');
+      if (!captchaInput.classList.contains('te-captcha-ring')) {
+        captchaInput.classList.add('te-captcha-ring');
+      }
+      if (document.activeElement !== captchaInput) {
         captchaInput.focus();
       }
       attachEnterListener(captchaInput);
@@ -1217,16 +1249,33 @@
       const p = passengers[idx];
 
       // ── Passenger Name (p-autocomplete) ───────────────────────────────────
-      // The name field on IRCTC psgninput is a PrimeNG <p-autocomplete> component.
-      // It behaves like the station search — we must use fillAngularAutocomplete
-      // so Angular's internal change detection updates the reactive form model.
+      // The name field is a PrimeNG p-autocomplete component. However, IRCTC
+      // allows free-text names — the dropdown panel only appears if a master list
+      // entry matches. For most users it won't match, so we bypass the autocomplete
+      // panel entirely and force the value directly into the Angular reactive model.
       const allNameInputs = getPassengerNameInputs();
       const nameInput = allNameInputs[idx];
       if (nameInput && p.name && nameInput.value !== p.name) {
-        console.log(`Tatkal Sniper: Filling name for passenger #${idx + 1} via autocomplete: "${p.name}"`);
-        await fillAngularAutocomplete(nameInput, p.name);
-        // After autocomplete fires, close any dropdown suggestion panel by pressing Escape
+        console.log(`Tatkal Sniper: Filling name for passenger #${idx + 1}: "${p.name}"`);
+        nameInput.focus();
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+        // Clear first
+        if (nativeSetter) nativeSetter.call(nameInput, ''); else nameInput.value = '';
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        // Set the full name at once
+        if (nativeSetter) nativeSetter.call(nameInput, p.name); else nameInput.value = p.name;
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        nameInput.dispatchEvent(new Event('change', { bubbles: true }));
+        // Dismiss any autocomplete dropdown that may appear
         nameInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+        nameInput.dispatchEvent(new Event('blur', { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 80));
+        // Re-focus and set again in case Angular reset the value on blur
+        nameInput.focus();
+        if (nativeSetter) nativeSetter.call(nameInput, p.name); else nameInput.value = p.name;
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        nameInput.dispatchEvent(new Event('change', { bubbles: true }));
+        nameInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', keyCode: 9, bubbles: true }));
       }
 
       await new Promise(resolve => setTimeout(resolve, 150));
@@ -1450,6 +1499,8 @@
     }
 
     console.log('Tatkal Sniper: Passenger details autofilled successfully.');
+    teTimings.passengerDone = Date.now();
+    chrome.storage.local.set({ teTimings });
   };
 
   // Handle the Review Journey page — focus captcha, auto-click Continue when filled
@@ -1466,10 +1517,14 @@
     }
 
     // Highlight and auto-focus so user can type immediately
-    if (!captchaInput.classList.contains('te-highlight')) {
-      captchaInput.classList.add('te-highlight');
-      captchaInput.focus();
-      console.log('Tatkal Sniper: Captcha field focused. Type the captcha — Continue will auto-click.');
+    if (!tatkalExpressConfig || tatkalExpressConfig.preferences?.autoFocusCaptcha !== false) {
+      if (!captchaInput.classList.contains('te-captcha-ring')) {
+        captchaInput.classList.add('te-captcha-ring');
+      }
+      if (document.activeElement !== captchaInput) {
+        captchaInput.focus();
+        console.log('Tatkal Sniper: Captcha field focused. Type the captcha — Continue will auto-click.');
+      }
     }
 
     // Attach listener only once (guard with dataset flag)
@@ -2077,6 +2132,36 @@
       return; // Early return! Avoid premature submission error.
     }
 
+    // Check for "High load Please Retry" error dialog
+    const highLoadError = Array.from(document.querySelectorAll('span, p, div, label')).find(el => {
+      const txt = el.textContent.toLowerCase();
+      return txt.includes('experiencing high load') || txt.includes('please retry') || txt.includes('high load please retry');
+    });
+
+    if (highLoadError && highLoadError.offsetWidth > 0) {
+      console.log('Tatkal Sniper: Detected IRCTC High Load error. Attempting to dismiss and retry...');
+      
+      // Try to find and click the OK/Close button on the dialog
+      const dialog = highLoadError.closest('p-dialog, p-confirmdialog, .ui-dialog, .p-dialog') || document.body;
+      const okBtn = Array.from(dialog.querySelectorAll('button, a')).find(el => {
+        const txt = el.textContent.toUpperCase();
+        return txt === 'OK' || txt === 'YES' || txt === 'RETRY' || txt === 'CLOSE';
+      });
+      
+      if (okBtn) {
+        console.log('Tatkal Sniper: Clicking OK on High Load error dialog.');
+        clickElement(okBtn);
+      }
+      
+      // Reset the Last Clicked timer on all Book Now buttons so we can retry instantly
+      document.querySelectorAll('button[data-te-last-clicked], input[data-te-last-clicked], a[data-te-last-clicked]').forEach(el => {
+        el.dataset.teLastClicked = '0';
+      });
+      
+      // Wait briefly for dialog to close before continuing to click Book Now
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
     // Now scan and click the "Book Now" button for this train
     let bookBtn = null;
     const bookBtnCandidates = Array.from(matchedCard.querySelectorAll('button, input, a, span, div')).filter(el => {
@@ -2182,6 +2267,7 @@
       isFillingInProgress = false;
     }
   };
+
 
   // ── Session Watchdog ────────────────────────────────────────────────────────
   const detectSessionTimeout = () => {

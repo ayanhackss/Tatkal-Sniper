@@ -32,13 +32,13 @@
 }
 
 body {
-  /* Fix #6: Flexible dimensions instead of fixed 390×590 */
+  /* Chrome extension popup hard limit is 600x600 */
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background: var(--bg-gradient);
   color: var(--text-primary);
   width: 390px;
-  min-height: 560px;
-  max-height: 640px;
+  height: 600px;
+  max-height: 600px;
   overflow: hidden;
   display: flex;
   justify-content: center;
@@ -182,7 +182,7 @@ body {
 
 /* Custom Scrollbar */
 .content-body::-webkit-scrollbar {
-  width: 5px;
+  width: 8px;
 }
 
 .content-body::-webkit-scrollbar-track {
@@ -984,3 +984,85 @@ body {
   border-color: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
 }
+
+/* ── Ping Indicator ──────────────────────────────────────────────────────────── */
+.ping-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.08);
+  cursor: default;
+}
+
+.ping-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  transition: background 0.4s ease;
+  animation: ping-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ping-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.ping-ms {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: 'Outfit', monospace;
+  min-width: 28px;
+}
+
+/* ── Countdown Urgent Pulse ──────────────────────────────────────────────────── */
+.countdown-digits.urgent {
+  color: #ef4444;
+  animation: urgent-blink 0.8s ease-in-out infinite;
+}
+
+.countdown-digits.done {
+  color: #10b981;
+  font-size: 1.2rem;
+}
+
+@keyframes urgent-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.04); }
+}
+
+/* ── Speed Analytics Panel ───────────────────────────────────────────────────── */
+.speed-analytics-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.speed-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: rgba(249,115,22,0.06);
+  border-radius: 6px;
+  border: 1px solid rgba(249,115,22,0.12);
+}
+
+.speed-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.speed-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #f97316;
+  font-family: 'Outfit', monospace;
+}
+

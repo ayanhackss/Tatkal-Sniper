@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const autoUpgradeCheckbox = document.getElementById('autoUpgrade');
   const confirmBerthsOnlyCheckbox = document.getElementById('confirmBerthsOnly');
   const autoFocusCaptchaCheckbox = document.getElementById('autoFocusCaptcha');
+  const ghostModeCheckbox = document.getElementById('ghostMode');
 
   // Fix #9: Confirmation modal elements
   const confirmModal = document.getElementById('confirmModal');
@@ -434,6 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           autoUpgradeCheckbox.checked = !!config.preferences.autoUpgrade;
           confirmBerthsOnlyCheckbox.checked = !!config.preferences.confirmBerthsOnly;
           autoFocusCaptchaCheckbox.checked = config.preferences.autoFocusCaptcha !== false;
+          if (ghostModeCheckbox) ghostModeCheckbox.checked = !!config.preferences.ghostMode;
         }
 
         // Load passengers
@@ -493,7 +495,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         travelInsurance: travelInsuranceSelect.value,
         autoUpgrade: autoUpgradeCheckbox.checked,
         confirmBerthsOnly: confirmBerthsOnlyCheckbox.checked,
-        autoFocusCaptcha: autoFocusCaptchaCheckbox.checked
+        autoFocusCaptcha: autoFocusCaptchaCheckbox.checked,
+        ghostMode: ghostModeCheckbox ? ghostModeCheckbox.checked : false
       }
     };
 
@@ -738,7 +741,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     countdownInterval = setInterval(tick, 1000);
   };
 
-  // ─── 9. Clock Sync Warning ────────────────────────────────────────────────────
+  // ─── 9. Clock Sync Warning (upgraded with live server time display) ──────────
   const checkClockSync = async () => {
     const warningEl = document.getElementById('clockWarning');
     const warningText = document.getElementById('clockWarningText');
@@ -755,10 +758,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const drift = Math.abs(networkTime - roundTripHalf - localTime);
       if (drift > 2000) {
         const driftSec = (drift / 1000).toFixed(1);
-        if (warningText) warningText.textContent = `⚠ Clock is off by ~${driftSec}s — sync your system time for Tatkal!`;
+        if (warningText) warningText.textContent = `Clock is off by ~${driftSec}s — sync your system time for Tatkal!`;
         warningEl.style.display = 'flex';
       } else {
-        warningEl.style.display = 'none';
+        // Show server time in warning bar as a positive confirmation
+        if (warningText) warningText.textContent = `Server time synced. Latency: ${Math.round(roundTripHalf)}ms`;
+        warningEl.style.display = 'flex';
+        warningEl.style.background = 'rgba(16,185,129,0.12)';
+        warningEl.style.borderColor = 'rgba(16,185,129,0.4)';
+        warningEl.style.color = '#10b981';
       }
     } catch (e) {
       // Network unavailable — silently skip clock sync check
@@ -896,4 +904,73 @@ document.addEventListener('DOMContentLoaded', async () => {
   startCountdown();
   checkClockSync(); // Non-blocking async check
   await refreshScheduleUI();
+
+  // ─── 12. IRCTC Server Ping Monitor ───────────────────────────────────────────
+  const pingDot = document.getElementById('pingDot');
+  const pingMs = document.getElementById('pingMs');
+
+  const runPing = async () => {
+    if (!pingDot || !pingMs) return;
+    try {
+      const t0 = Date.now();
+      // Fetch a known lightweight IRCTC asset with no-cors (we only measure time, not content)
+      await fetch('https://www.irctc.co.in/nget/assets/images/favicon.ico', {
+        method: 'HEAD', mode: 'no-cors', cache: 'no-store'
+      });
+      const rtt = Date.now() - t0;
+      pingMs.textContent = `${rtt}ms`;
+      if (rtt < 200) {
+        pingDot.style.background = '#10b981'; // green
+      } else if (rtt < 500) {
+        pingDot.style.background = '#f59e0b'; // amber
+      } else {
+        pingDot.style.background = '#ef4444'; // red
+      }
+    } catch (e) {
+      pingMs.textContent = 'err';
+      pingDot.style.background = '#ef4444';
+    }
+  };
+
+  runPing();
+  setInterval(runPing, 5000);
+
+  // ─── 13. Speed Analytics — read timings from storage and show in Tips tab ────
+  const refreshSpeedAnalytics = async () => {
+    try {
+      const { teTimings } = await chrome.storage.local.get('teTimings');
+      const card = document.getElementById('speedAnalyticsCard');
+      const body = document.getElementById('speedAnalyticsBody');
+      if (!card || !body || !teTimings) return;
+
+      const stages = [
+        { key: 'loginDone',     label: 'Login' },
+        { key: 'searchDone',    label: 'Search' },
+        { key: 'passengerDone', label: 'Passenger Form' },
+        { key: 'reviewDone',    label: 'Review' },
+      ];
+
+      let rows = '';
+      let prevTime = teTimings.startTime || null;
+      let anyData = false;
+      for (const stage of stages) {
+        const t = teTimings[stage.key];
+        if (t) {
+          anyData = true;
+          const delta = prevTime ? ((t - prevTime) / 1000).toFixed(2) : '—';
+          rows += `<div class="speed-row"><span class="speed-label">${stage.label}</span><span class="speed-value">${delta}s</span></div>`;
+          prevTime = t;
+        }
+      }
+
+      if (anyData) {
+        card.style.display = '';
+        body.innerHTML = rows;
+      }
+    } catch (e) { /* ignore */ }
+  };
+
+  refreshSpeedAnalytics();
+  // Refresh analytics every time the Tips tab is clicked
+  document.querySelector('[data-tab="tips"]')?.addEventListener('click', refreshSpeedAnalytics);
 });
