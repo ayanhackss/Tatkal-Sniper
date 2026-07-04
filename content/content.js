@@ -18,6 +18,18 @@
   // Live Speed Analytics — timestamps per stage
   let teTimings = { startTime: null, loginDone: null, searchDone: null, passengerDone: null, reviewDone: null };
 
+  // Anti-bot memory state tracker (avoids DOM pollution)
+  const elementState = new WeakMap();
+  const setElState = (el, key, val) => {
+    if (!el) return;
+    if (!elementState.has(el)) elementState.set(el, {});
+    elementState.get(el)[key] = val;
+  };
+  const getElState = (el, key) => {
+    if (!el || !elementState.has(el)) return undefined;
+    return elementState.get(el)[key];
+  };
+
   try {
     if (isContextValid()) {
       const state = await chrome.storage.local.get(['tatkalExpressActive', 'tatkalExpressConfig']);
@@ -58,13 +70,13 @@
 
   // Inject CSS for the live floating console on IRCTC
   const injectStyles = () => {
-    const id = 'tatkal-express-styles';
+    const id = 'ng-core-styles';
     if (document.getElementById(id)) return;
 
     const style = document.createElement('style');
     style.id = id;
     style.textContent = `
-      #tatkalExpressConsole {
+      #ng-core-console-overlay {
         position: fixed;
         bottom: 20px;
         right: 20px;
@@ -81,7 +93,7 @@
         overflow: hidden;
         transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
-      .te-header {
+      .ng-panel-hdr {
         background: linear-gradient(135deg, #f97316, #f59e0b);
         padding: 10px 14px;
         display: flex;
@@ -90,7 +102,7 @@
         border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         color: white;
       }
-      .te-title {
+      .ng-panel-ttl {
         font-size: 0.9rem;
         font-weight: 700;
         letter-spacing: 0.5px;
@@ -98,35 +110,35 @@
         align-items: center;
         gap: 6px;
       }
-      .te-dot {
+      .ng-status-indicator {
         width: 8px;
         height: 8px;
         background: #34d399;
         border-radius: 50%;
         box-shadow: 0 0 8px #34d399;
       }
-      .te-dot.inactive {
+      .ng-status-indicator.inactive {
         background: #f87171;
         box-shadow: 0 0 8px #f87171;
       }
-      .te-body {
+      .ng-panel-bd {
         padding: 14px;
       }
-      .te-status-text {
+      .ng-status-msg {
         font-size: 0.76rem;
         color: #475569;
         margin-bottom: 10px;
         line-height: 1.4;
       }
-      .te-status-text strong {
+      .ng-status-msg strong {
         color: #1e293b;
       }
-      .te-actions {
+      .ng-action-container {
         display: flex;
         flex-direction: column;
         gap: 8px;
       }
-      .te-btn {
+      .ng-ui-btn {
         width: 100%;
         background: rgba(0, 0, 0, 0.04);
         border: 1px solid rgba(0, 0, 0, 0.08);
@@ -142,31 +154,31 @@
         justify-content: center;
         gap: 6px;
       }
-      .te-btn:hover {
+      .ng-ui-btn:hover {
         background: rgba(0, 0, 0, 0.08);
         border-color: rgba(0, 0, 0, 0.15);
       }
-      .te-btn-primary {
+      .ng-ui-btn-primary {
         background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
         border: none;
         color: #fff;
         box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3);
       }
-      .te-btn-primary:hover {
+      .ng-ui-btn-primary:hover {
         filter: brightness(1.08);
         transform: translateY(-1px);
         box-shadow: 0 6px 14px rgba(249, 115, 22, 0.4);
       }
-      .te-btn-danger {
+      .ng-ui-btn-warn {
         background: rgba(239, 68, 68, 0.1);
         color: #ef4444;
         border: 1px solid rgba(239, 68, 68, 0.2);
       }
-      .te-btn-danger:hover {
+      .ng-ui-btn-warn:hover {
         background: #ef4444;
         color: #fff;
       }
-      .te-passenger-badge {
+      .ng-badge-indicator {
         font-size: 0.7rem;
         padding: 2px 6px;
         background: rgba(251, 146, 60, 0.15);
@@ -176,12 +188,12 @@
       }
       
       /* Glowing highlighting for target forms */
-      .te-highlight {
+      .ng-element-focused {
         outline: 2px solid #fb923c !important;
         box-shadow: 0 0 10px rgba(251, 146, 60, 0.6) !important;
       }
       /* Health Monitor Progress Bar */
-      .te-progress {
+      .ng-progress-bar-container {
         display: flex;
         flex-direction: column;
         gap: 6px;
@@ -189,7 +201,7 @@
         padding-top: 10px;
         border-top: 1px solid rgba(255,255,255,0.08);
       }
-      .te-step {
+      .ng-progress-step {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -197,14 +209,14 @@
         color: #6b7280;
         transition: color 0.3s ease;
       }
-      .te-step.active {
+      .ng-progress-step.active {
         color: #fff;
         font-weight: 600;
       }
-      .te-step.done {
+      .ng-progress-step.done {
         color: #34d399;
       }
-      .te-step-icon {
+      .ng-step-ico {
         width: 14px;
         height: 14px;
         border-radius: 50%;
@@ -214,22 +226,22 @@
         justify-content: center;
         font-size: 8px;
       }
-      .te-step.active .te-step-icon {
+      .ng-progress-step.active .ng-step-ico {
         background: currentColor;
         box-shadow: 0 0 6px currentColor;
       }
-      .te-step.done .te-step-icon {
+      .ng-progress-step.done .ng-step-ico {
         background: transparent;
         border-color: #34d399;
       }
-      .te-step.done .te-step-icon::after {
+      .ng-progress-step.done .ng-step-ico::after {
         content: '✓';
         color: #34d399;
         font-size: 10px;
       }
       
       /* Toast Notifications for Retries */
-      .te-toast {
+      .ng-toast-message-box {
         position: fixed;
         bottom: 20px;
         left: 50%;
@@ -246,7 +258,7 @@
         gap: 12px;
         font-family: sans-serif;
       }
-      .te-toast button {
+      .ng-toast-message-box button {
         background: white;
         color: #ef4444;
         border: none;
@@ -256,13 +268,13 @@
         font-weight: bold;
       }
       /* Captcha focus ring */
-      .te-captcha-ring {
+      .ng-input-pulse {
         outline: 3px solid #f97316 !important;
         outline-offset: 2px !important;
         box-shadow: 0 0 0 5px rgba(249,115,22,0.25) !important;
-        animation: te-captcha-pulse 1s ease-in-out infinite !important;
+        animation: ng-input-pulse-anim 1s ease-in-out infinite !important;
       }
-      @keyframes te-captcha-pulse {
+      @keyframes ng-input-pulse-anim {
         0%, 100% { box-shadow: 0 0 0 5px rgba(249,115,22,0.25); }
         50% { box-shadow: 0 0 0 9px rgba(249,115,22,0.08); }
       }
@@ -272,20 +284,36 @@
 
   // Build the live floating console UI on top of IRCTC
   const createConsole = () => {
-    let consoleEl = document.getElementById('tatkalExpressConsole');
-    if (consoleEl) return;
+    let oldConsole = document.getElementById('ng-core-console-overlay');
+    if (oldConsole) oldConsole.remove(); // Destroy old console from invalidated contexts
 
     injectStyles();
 
-    consoleEl = document.createElement('div');
-    consoleEl.id = 'tatkalExpressConsole';
+    let consoleEl = document.createElement('div');
+    consoleEl.id = 'ng-core-console-overlay';
+
+    // Robust Event Delegation for buttons
+    consoleEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      if (btn.id === 'ngAutofillBtn') {
+        e.preventDefault();
+        triggerManualAutofill();
+      } else if (btn.id === 'ngDeactivateBtn') {
+        e.preventDefault();
+        deactivateExtension();
+      } else if (btn.id === 'ngActivateBtn') {
+        e.preventDefault();
+        activateExtension();
+      }
+    });
 
     updateConsoleContent(consoleEl);
     document.body.appendChild(consoleEl);
   };
 
-  const updateConsoleContent = (consoleEl = null) => {
-    const el = consoleEl || document.getElementById('tatkalExpressConsole');
+  const updateConsoleContent = (consoleEl) => {
+    const el = consoleEl || document.getElementById('ng-core-console-overlay');
     if (!el) return;
 
     const isActive = tatkalExpressActive;
@@ -324,10 +352,10 @@
 
     const steps = ['Login', 'Search', 'Select Train', 'Passengers', 'Review', 'Payment'];
     const progressHTML = isActive ? `
-      <div class="te-progress">
+      <div class="ng-progress-bar-container">
         ${steps.map((s, i) => `
-          <div class="te-step ${i < currentStepIdx ? 'done' : (i === currentStepIdx ? 'active' : '')}">
-            <div class="te-step-icon"></div>
+          <div class="ng-progress-step ${i < currentStepIdx ? 'done' : (i === currentStepIdx ? 'active' : '')}">
+            <div class="ng-step-ico"></div>
             ${s}
           </div>
         `).join('')}
@@ -335,25 +363,25 @@
     ` : '';
 
     el.innerHTML = `
-      <div class="te-header">
-        <div class="te-title">
-          <div class="te-dot"></div>
+      <div class="ng-panel-hdr">
+        <div class="ng-panel-ttl">
+          <div class="ng-status-indicator"></div>
           Tatkal Sniper Live
         </div>
-        <span class="te-passenger-badge"></span>
+        <span class="ng-badge-indicator"></span>
       </div>
-      <div class="te-body">
-        <div class="te-status-text">
-          Status: <strong class="te-status-label"></strong><br>
-          <span class="te-status-desc" style="font-size:0.7rem; color:#9ca3af; display:block; margin-top:4px;"></span>
+      <div class="ng-panel-bd">
+        <div class="ng-status-msg">
+          Status: <strong class="ng-status-lbl"></strong><br>
+          <span class="ng-status-description" style="font-size:0.7rem; color:#9ca3af; display:block; margin-top:4px;"></span>
         </div>
-        <div class="te-actions">
-          <div class="te-active-actions" style="display: none; flex-direction: column; gap: 8px;">
-            <button class="te-btn te-btn-primary" id="teAutofillBtn">⚡ Auto-Fill Current Page</button>
-            <button class="te-btn te-btn-danger" id="teDeactivateBtn">Pause Auto-Booking</button>
+        <div class="ng-action-container">
+          <div class="ng-active-cmds" style="display: none; flex-direction: column; gap: 8px;">
+            <button class="ng-ui-btn ng-ui-btn-primary" id="ngAutofillBtn">⚡ Auto-Fill Current Page</button>
+            <button class="ng-ui-btn ng-ui-btn-warn" id="ngDeactivateBtn">Pause Auto-Booking</button>
           </div>
-          <div class="te-inactive-actions" style="display: none; flex-direction: column; gap: 8px;">
-            <button class="te-btn te-btn-primary" id="teActivateBtn">Activate Auto-Booking</button>
+          <div class="ng-inactive-cmds" style="display: none; flex-direction: column; gap: 8px;">
+            <button class="ng-ui-btn ng-ui-btn-primary" id="ngActivateBtn">Activate Auto-Booking</button>
           </div>
         </div>
         ${progressHTML}
@@ -361,28 +389,28 @@
     `;
 
     // Safely configure dynamic UI states via DOM properties to satisfy extension guidelines
-    const dot = el.querySelector('.te-dot');
+    const dot = el.querySelector('.ng-status-indicator');
     if (dot) {
-      dot.className = isActive ? 'te-dot' : 'te-dot inactive';
+      dot.className = isActive ? 'ng-status-indicator' : 'ng-status-indicator inactive';
     }
 
-    const badge = el.querySelector('.te-passenger-badge');
+    const badge = el.querySelector('.ng-badge-indicator');
     if (badge) {
       badge.textContent = `${passengerCount} Pax`;
     }
 
-    const statusLabel = el.querySelector('.te-status-label');
+    const statusLabel = el.querySelector('.ng-status-lbl');
     if (statusLabel) {
       statusLabel.textContent = isActive ? 'Active' : 'Paused';
     }
 
-    const statusDesc = el.querySelector('.te-status-desc');
+    const statusDesc = el.querySelector('.ng-status-description');
     if (statusDesc) {
       statusDesc.textContent = statusMsg;
     }
 
-    const activeActions = el.querySelector('.te-active-actions');
-    const inactiveActions = el.querySelector('.te-inactive-actions');
+    const activeActions = el.querySelector('.ng-active-cmds');
+    const inactiveActions = el.querySelector('.ng-inactive-cmds');
     if (activeActions && inactiveActions) {
       if (isActive) {
         activeActions.style.display = 'flex';
@@ -392,18 +420,6 @@
         inactiveActions.style.display = 'flex';
       }
     }
-
-    // Attach Event Listeners
-    setTimeout(() => {
-      const fillBtn = el.querySelector('#teAutofillBtn');
-      if (fillBtn) fillBtn.addEventListener('click', triggerManualAutofill);
-
-      const deactivateBtn = el.querySelector('#teDeactivateBtn');
-      if (deactivateBtn) deactivateBtn.addEventListener('click', deactivateExtension);
-
-      const activateBtn = el.querySelector('#teActivateBtn');
-      if (activateBtn) activateBtn.addEventListener('click', activateExtension);
-    }, 50);
   };
 
   // Detector for IRCTC pages based on URL and DOM selectors
@@ -487,8 +503,47 @@
   };
 
   // Helper: Perform a robust simulated click that bubbles and works with framework event listeners
-  const clickElement = (el) => {
+  // When Mouse Simulation is on, it first dispatches a sequence of mousemove events
+  // tracing a natural curved path to the element, mimicking real human cursor movement.
+  const clickElement = async (el) => {
     if (!el) return;
+
+    const mouseSimEnabled = tatkalExpressConfig &&
+      tatkalExpressConfig.preferences &&
+      tatkalExpressConfig.preferences.mouseSimulation;
+
+    if (mouseSimEnabled) {
+      try {
+        const rect = el.getBoundingClientRect();
+        const targetX = rect.left + rect.width / 2;
+        const targetY = rect.top + rect.height / 2;
+
+        // Start from a random position on screen (simulates cursor coming from somewhere)
+        const startX = Math.random() * window.innerWidth * 0.6;
+        const startY = Math.random() * window.innerHeight * 0.6;
+
+        // Generate ~8 intermediate steps along a slightly curved path using quadratic bezier
+        const steps = 8;
+        const cpX = (startX + targetX) / 2 + (Math.random() - 0.5) * 120;
+        const cpY = (startY + targetY) / 2 + (Math.random() - 0.5) * 80;
+
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          const x = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * cpX + t * t * targetX;
+          const y = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * cpY + t * t * targetY;
+          document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+          await new Promise(r => setTimeout(r, 10 + Math.random() * 15));
+        }
+
+        // Final move right onto the element
+        el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: targetX, clientY: targetY }));
+        el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, clientX: targetX, clientY: targetY }));
+        await new Promise(r => setTimeout(r, 20 + Math.random() * 40));
+      } catch (err) {
+        console.warn('Tatkal Sniper: Mouse simulation failed, skipping:', err);
+      }
+    }
+
     try {
       el.focus();
       el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
@@ -506,6 +561,16 @@
         console.error('Tatkal Sniper: click event dispatch failed:', clickErr);
       }
     }
+  };
+
+  // Helper: Human-like random delay (cooling period between automation steps)
+  // Reads min/max from config so users can tune it in the Preferences tab.
+  const humanDelay = async (overrideMin, overrideMax) => {
+    const prefs = tatkalExpressConfig && tatkalExpressConfig.preferences;
+    const min = overrideMin ?? (prefs && prefs.coolingMin != null ? prefs.coolingMin : 600);
+    const max = overrideMax ?? (prefs && prefs.coolingMax != null ? prefs.coolingMax : 1400);
+    const delay = Math.floor(min + Math.random() * (max - min));
+    await new Promise(r => setTimeout(r, delay));
   };
 
   // Helper: Autofill an input field compatible with Angular two-way binding
@@ -552,6 +617,9 @@
     inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
     inputEl.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
     inputEl.dispatchEvent(new Event('blur', { bubbles: true }));
+
+    // Inter-field cooling: small jittered pause between filling each form field
+    await humanDelay(40, 120);
   };
 
   // Helper: Detect if IRCTC is showing a loading/please-wait overlay
@@ -899,9 +967,9 @@
         console.log('Tatkal Sniper: Found Sign In button:', loginBtn);
         // Use a 2-second throttle timestamp to allow subsequent clicks if a click failed/ran too early
         const now = Date.now();
-        const lastClicked = parseInt(loginBtn.dataset.teLastClicked || '0', 10);
+        const lastClicked = parseInt(getElState(loginBtn, 'teLastClicked') || '0', 10);
         if (now - lastClicked > 2000) {
-          loginBtn.dataset.teLastClicked = now.toString();
+          setElState(loginBtn, 'teLastClicked', now.toString());
           console.log('Tatkal Sniper: Automatically clicking Sign In button...');
           loginBtn.focus();
           loginBtn.click();
@@ -917,8 +985,8 @@
 
     // Attach Enter key submit listener to inputs
     const attachEnterListener = (inputEl) => {
-      if (inputEl && !inputEl.dataset.teListenerAttached) {
-        inputEl.dataset.teListenerAttached = "true";
+      if (inputEl && !getElState(inputEl, 'teListenerAttached')) {
+        setElState(inputEl, 'teListenerAttached', 'true');
         inputEl.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -933,8 +1001,8 @@
 
     // Auto-focus and highlight captcha for extremely rapid manual entry
     if (captchaInput && (!tatkalExpressConfig || tatkalExpressConfig.preferences?.autoFocusCaptcha !== false)) {
-      if (!captchaInput.classList.contains('te-captcha-ring')) {
-        captchaInput.classList.add('te-captcha-ring');
+      if (!captchaInput.classList.contains('ng-input-pulse')) {
+        captchaInput.classList.add('ng-input-pulse');
       }
       if (document.activeElement !== captchaInput) {
         captchaInput.focus();
@@ -942,8 +1010,8 @@
       attachEnterListener(captchaInput);
 
       // Auto-submit on captcha blur (when user finishes typing and focus shifts)
-      if (!captchaInput.dataset.teLoginListenerAttached) {
-        captchaInput.dataset.teLoginListenerAttached = 'true';
+      if (!getElState(captchaInput, 'teLoginListenerAttached')) {
+        setElState(captchaInput, 'teLoginListenerAttached', 'true');
         captchaInput.addEventListener('blur', () => {
           if (captchaInput.value.trim().length >= 3) {
             setTimeout(clickSignIn, 200);
@@ -986,19 +1054,20 @@
     const fromInput = document.querySelector('p-autocomplete[id="origin"] input') ||
       (autocompletes[0] && autocompletes[0].querySelector('input')) ||
       document.querySelector('input[aria-autocomplete="list"][placeholder*="From"]');
-    if (fromInput && journey.fromStation && !fromInput.dataset.teAutofilled) {
+    if (fromInput && journey.fromStation && !getElState(fromInput, 'teAutofilled')) {
       await fillAngularAutocomplete(fromInput, journey.fromStation);
-      fromInput.dataset.teAutofilled = "true";
+      setElState(fromInput, 'teAutofilled', 'true');
       await new Promise(resolve => setTimeout(resolve, 150));
     }
 
     // To Station
+    const autocompletes2 = document.querySelectorAll('p-autocomplete');
     const toInput = document.querySelector('p-autocomplete[id="destination"] input') ||
-      (autocompletes[1] && autocompletes[1].querySelector('input')) ||
+      (autocompletes2[1] && autocompletes2[1].querySelector('input')) ||
       document.querySelector('input[aria-autocomplete="list"][placeholder*="To"]');
-    if (toInput && journey.toStation && !toInput.dataset.teAutofilled) {
+    if (toInput && journey.toStation && !getElState(toInput, 'teAutofilled')) {
       await fillAngularAutocomplete(toInput, journey.toStation);
-      toInput.dataset.teAutofilled = "true";
+      setElState(toInput, 'teAutofilled', 'true');
       await new Promise(resolve => setTimeout(resolve, 150));
     }
 
@@ -1117,9 +1186,9 @@
       });
     }
 
-    if (searchBtn && !searchBtn.dataset.teClicked) {
-      searchBtn.dataset.teClicked = "true";
-      searchBtn.classList.add('te-highlight');
+    if (searchBtn && !getElState(searchBtn, 'teClicked')) {
+      setElState(searchBtn, 'teClicked', 'true');
+      searchBtn.classList.add('ng-element-focused');
       console.log('Tatkal Sniper: Details pre-filled. Auto-clicking Search button...');
       searchBtn.click();
     }
@@ -1157,7 +1226,7 @@
   };
 
   // Helper: Automatically dismiss the "Select Passengers from Master List" modal dialog if it pops up
-  const closeMasterListDialog = () => {
+  const closeMasterListDialog = async () => {
     const dialogs = document.querySelectorAll('p-dialog, .p-dialog, .ui-dialog');
     if (dialogs.length === 0) return;
 
@@ -1489,8 +1558,8 @@
       return isVisible && (txt === 'CONTINUE' || txt === 'PROCEED' || txt.includes('CONTINUE'));
     });
 
-    if (continueBtn && !continueBtn.dataset.teClicked) {
-      continueBtn.dataset.teClicked = 'true';
+    if (continueBtn && !getElState(continueBtn, 'teClicked')) {
+      setElState(continueBtn, 'teClicked', 'true');
       console.log('Tatkal Sniper: Clicking Continue button to proceed to payment gateway...');
       continueBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
       continueBtn.click();
@@ -1504,7 +1573,7 @@
   };
 
   // Handle the Review Journey page — focus captcha, auto-click Continue when filled
-  const fillReviewPage = () => {
+  const fillReviewPage = async () => {
     // Find the captcha input field
     const captchaInput = document.querySelector('input[placeholder*="Captcha" i]') ||
       document.querySelector('input[id*="captcha" i]') ||
@@ -1518,8 +1587,8 @@
 
     // Highlight and auto-focus so user can type immediately
     if (!tatkalExpressConfig || tatkalExpressConfig.preferences?.autoFocusCaptcha !== false) {
-      if (!captchaInput.classList.contains('te-captcha-ring')) {
-        captchaInput.classList.add('te-captcha-ring');
+      if (!captchaInput.classList.contains('ng-input-pulse')) {
+        captchaInput.classList.add('ng-input-pulse');
       }
       if (document.activeElement !== captchaInput) {
         captchaInput.focus();
@@ -1528,8 +1597,8 @@
     }
 
     // Attach listener only once (guard with dataset flag)
-    if (captchaInput.dataset.teReviewListenerAttached) return;
-    captchaInput.dataset.teReviewListenerAttached = 'true';
+    if (getElState(captchaInput, 'teReviewListenerAttached')) return;
+    setElState(captchaInput, 'teReviewListenerAttached', 'true');
 
     // Auto-click Continue when user presses Enter in captcha field
     captchaInput.addEventListener('keydown', (e) => {
@@ -1547,20 +1616,19 @@
     });
   };
 
-  const clickContinueOnReviewPage = () => {
+  const clickContinueOnReviewPage = async () => {
     const continueBtn = Array.from(document.querySelectorAll('button, input[type="submit"]')).find(el => {
       const txt = el.textContent.trim().toUpperCase();
       const isVisible = el.offsetWidth > 0 && el.offsetHeight > 0;
       return isVisible && (txt === 'CONTINUE' || txt.includes('CONTINUE'));
     });
-    if (continueBtn && !continueBtn.dataset.teClicked) {
-      continueBtn.dataset.teClicked = 'true';
-      console.log('Tatkal Sniper: Captcha filled. Auto-clicking Continue on Review page...');
+    if (continueBtn && !getElState(continueBtn, 'teClicked')) {
+      setElState(continueBtn, 'teClicked', 'true');
+      console.log('Tatkal Sniper: Auto-clicking Continue on Review page...');
       continueBtn.click();
     }
   };
 
-  // Autofill/Highlight/Select payment choice page
   // Autofill/Highlight/Select payment choice page
   const highlightPaymentPage = async () => {
     const paymentChoice = tatkalExpressConfig.preferences.preferredPayment;
@@ -1594,7 +1662,7 @@
     };
 
     // Helper 1: Click matching category in the left sidebar
-    const clickLeftPaymentCategory = () => {
+    const clickLeftPaymentCategory = async () => {
       // Prioritize searching inside the payment options block/tabs container to avoid matching top header menus
       let elements = [];
       const tabsContainer = document.querySelector('.payment-tabs, app-payment-options, app-bkg-payment-options, .payment-tab, .payment-tabs-li');
@@ -1640,7 +1708,7 @@
         candidates.sort((a, b) => a.text.length - b.text.length);
         const target = candidates[0].el;
         console.log(`Tatkal Sniper: Clicking left payment category: "${candidates[0].text}"`);
-        clickElement(target);
+        await clickElement(target);
         
         // Also click parent elements (up to 2 levels) to ensure Angular event listeners on outer wrappers are fired
         let clickParent = target.parentElement;
@@ -1649,7 +1717,7 @@
             const tagName = clickParent.tagName.toUpperCase();
             if (tagName === 'TD' || tagName === 'DIV' || tagName === 'LI' || tagName === 'A' || tagName.includes('TAB')) {
               console.log(`Tatkal Sniper: Clicking left payment category parent wrapper (${tagName}):`, clickParent);
-              clickElement(clickParent);
+              await clickElement(clickParent);
             }
             clickParent = clickParent.parentElement;
           } else {
@@ -1662,7 +1730,7 @@
     };
 
     // Helper 2: Click matching gateway option in the right side panel
-    const clickRightPaymentOption = () => {
+    const clickRightPaymentOption = async () => {
       const choiceUpper = paymentChoice.toUpperCase();
       const allDivs = Array.from(document.querySelectorAll('div, label, p-radioButton, input, span, td, a'));
       
@@ -1716,19 +1784,19 @@
         const target = candidates[0].el;
         console.log(`Tatkal Sniper: Clicking right payment option: "${candidates[0].text}"`);
         
-        clickElement(target);
+        await clickElement(target);
         const nativeInput = target.querySelector('input[type="radio"]');
-        if (nativeInput) clickElement(nativeInput);
+        if (nativeInput) await clickElement(nativeInput);
         
         // Highlight it
-        target.classList.add('te-highlight');
+        target.classList.add('ng-element-focused');
         return true;
       }
       return false;
     };
 
     // Helper 3: Click the orange "Pay & Book" / "Pay" button
-    const clickPayAndBookButton = () => {
+    const clickPayAndBookButton = async () => {
       const buttons = Array.from(document.querySelectorAll('button, input[type="submit"], a, span'));
       const payBtn = buttons.find(el => {
         const txt = el.textContent.trim().toUpperCase();
@@ -1744,22 +1812,22 @@
         );
       });
 
-      if (payBtn && !payBtn.dataset.teClicked) {
-        payBtn.dataset.teClicked = 'true';
-        payBtn.classList.add('te-highlight');
+      if (payBtn && !getElState(payBtn, 'teClicked')) {
+        setElState(payBtn, 'teClicked', 'true');
+        payBtn.classList.add('ng-element-focused');
         console.log(`Tatkal Sniper: Auto-clicking final Pay & Book / Add and Pay button: "${payBtn.textContent.trim()}"`);
-        clickElement(payBtn);
+        await clickElement(payBtn);
         return true;
       }
       return false;
     };
 
     // Step 1: Click left sidebar category (if not already clicked)
-    if (!body.dataset.teLeftCategoryClicked) {
+    if (!getElState(body, 'teLeftCategoryClicked')) {
       const categoryClicked = clickLeftPaymentCategory();
       if (categoryClicked) {
-        body.dataset.teLeftCategoryClicked = "true";
-        body.dataset.teLeftCategoryTime = Date.now().toString();
+        setElState(body, 'teLeftCategoryClicked', 'true');
+        setElState(body, 'teLeftCategoryTime', Date.now().toString());
       } else {
         console.log('Tatkal Sniper: Left sidebar categories not loaded or visible yet. Waiting...');
         return;
@@ -1767,8 +1835,8 @@
     }
 
     // Step 2: Click right sidebar option (if not already clicked)
-    if (!body.dataset.teRightOptionClicked) {
-      const leftTime = parseInt(body.dataset.teLeftCategoryTime || '0', 10);
+    if (!getElState(body, 'teRightOptionClicked')) {
+      const leftTime = parseInt(getElState(body, 'teLeftCategoryTime') || '0', 10);
       const elapsed = Date.now() - leftTime;
       if (elapsed < 600) {
         console.log('Tatkal Sniper: Waiting for right side options to render...');
@@ -1783,13 +1851,13 @@
 
       if (hasAddAndPay) {
         console.log('Tatkal Sniper: "Add and Pay" button is visible (insufficient balance). Bypassing right option selection.');
-        body.dataset.teRightOptionClicked = "true";
-        body.dataset.teRightOptionTime = Date.now().toString();
+        setElState(body, 'teRightOptionClicked', 'true');
+        setElState(body, 'teRightOptionTime', Date.now().toString());
       } else {
         const optionClicked = clickRightPaymentOption();
         if (optionClicked) {
-          body.dataset.teRightOptionClicked = "true";
-          body.dataset.teRightOptionTime = Date.now().toString();
+          setElState(body, 'teRightOptionClicked', 'true');
+          setElState(body, 'teRightOptionTime', Date.now().toString());
         } else {
           console.warn('Tatkal Sniper: Right side options not found or mismatch. Retrying in next cycle...');
           return;
@@ -1798,8 +1866,8 @@
     }
 
     // Step 3: Click final "Pay & Book" button (if not already clicked)
-    if (!body.dataset.tePayBookClicked) {
-      const rightTime = parseInt(body.dataset.teRightOptionTime || '0', 10);
+    if (!getElState(body, 'tePayBookClicked')) {
+      const rightTime = parseInt(getElState(body, 'teRightOptionTime') || '0', 10);
       const elapsed = Date.now() - rightTime;
       if (elapsed < 800) {
         console.log('Tatkal Sniper: Waiting before clicking final Pay & Book button...');
@@ -1808,7 +1876,7 @@
 
       const payBookClicked = clickPayAndBookButton();
       if (payBookClicked) {
-        body.dataset.tePayBookClicked = "true";
+        setElState(body, 'tePayBookClicked', 'true');
       }
     }
   };
@@ -1825,11 +1893,11 @@
       const rect = agreeBtn.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
         const now = Date.now();
-        const lastClicked = parseInt(agreeBtn.dataset.teLastClicked || '0', 10);
+        const lastClicked = parseInt(getElState(agreeBtn, 'teLastClicked') || '0', 10);
         if (now - lastClicked > 2000) {
-          agreeBtn.dataset.teLastClicked = now.toString();
+          setElState(agreeBtn, 'teLastClicked', now.toString());
           console.log('Tatkal Sniper: Automatically clicking visible confirmation dialog button: ' + agreeBtn.textContent.trim());
-          clickElement(agreeBtn);
+          await clickElement(agreeBtn);
           return; // Pause and let the mutation observer re-evaluate once DOM updates
         }
       }
@@ -1913,9 +1981,9 @@
     }
 
     // Highlighting the matched train card
-    if (!matchedCard.classList.contains('te-highlight')) {
+    if (!matchedCard.classList.contains('ng-element-focused')) {
       matchedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      matchedCard.classList.add('te-highlight');
+      matchedCard.classList.add('ng-element-focused');
       console.log('Tatkal Sniper: Found train! Scroll and highlight applied.');
     }
 
@@ -1967,11 +2035,11 @@
     if (!hasAvailabilityLoaded) {
       if (targetClassBtn) {
         const now = Date.now();
-        const lastClicked = parseInt(targetClassBtn.dataset.teLastClicked || '0', 10);
+        const lastClicked = parseInt(getElState(targetClassBtn, 'teLastClicked') || '0', 10);
         if (now - lastClicked > 5000) { // Limit click to at most once every 5 seconds to prevent spamming slow requests
-          targetClassBtn.dataset.teLastClicked = now.toString();
+          setElState(targetClassBtn, 'teLastClicked', now.toString());
           console.log(`Tatkal Sniper: Clicking class button inside train card: "${targetClassBtn.textContent.trim()}"`);
-          clickElement(targetClassBtn);
+          await clickElement(targetClassBtn);
         } else {
           console.log('Tatkal Sniper: Class button clicked recently. Waiting for availability response...');
         }
@@ -1990,7 +2058,7 @@
         for (const cls of elem.classList) {
           const c = cls.toLowerCase();
           // Exclude carousel wrappers, train containers, custom highlights, and generic outer wrappers
-          if (c.includes('carousel') || c.includes('train') || c.includes('te-') || c.includes('card-wrapper')) continue;
+          if (c.includes('carousel') || c.includes('train') || c.includes('ng-') || c.includes('card-wrapper')) continue;
           if (c.includes('selected') || c.includes('active') || c === 'ui-state-active' || c.includes('highlight')) {
             return true;
           }
@@ -2090,7 +2158,7 @@
     if (dateCard) {
       const isSelected = checkVisualSelection(dateCard);
       const now = Date.now();
-      const lastClicked = parseInt(dateCard.dataset.teLastClicked || '0', 10);
+      const lastClicked = parseInt(getElState(dateCard, 'teLastClicked') || '0', 10);
 
       if (isSelected) {
         console.log('Tatkal Sniper: Date card is visually selected. Ready to click Book Now.');
@@ -2100,15 +2168,15 @@
       } else if (now - lastClicked < 2500) {
         console.log('Tatkal Sniper: Date card clicked, visual check fallback triggered. Proceeding to Book Now.');
       } else {
-        dateCard.dataset.teLastClicked = now.toString();
+        setElState(dateCard, 'teLastClicked', now.toString());
         console.log(`Tatkal Sniper: Selecting date card. Clicking:`, dateCard);
-        clickElement(dateCard);
+        await clickElement(dateCard);
         
         // Click any interactive child divs inside (e.g. <div class="pre-avl"> or with tabindex)
         const interactiveChildren = dateCard.querySelectorAll('div.pre-avl, div.pre-avail, div[class*="avl"], div[class*="avail"], div[tabindex="0"]');
         for (const child of interactiveChildren) {
           console.log('Tatkal Sniper: Clicking date card interactive child:', child);
-          clickElement(child);
+          await clickElement(child);
         }
         
         // Also click parent elements (up to 2 levels) to ensure click listeners on outer wrappers (like TD or card DIV) are triggered
@@ -2118,7 +2186,7 @@
             const tagName = clickParent.tagName.toUpperCase();
             if (tagName === 'TD' || tagName === 'DIV' || tagName === 'A') {
               console.log(`Tatkal Sniper: Clicking date card parent wrapper (${tagName}):`, clickParent);
-              clickElement(clickParent);
+              await clickElement(clickParent);
             }
             clickParent = clickParent.parentElement;
           } else {
@@ -2150,12 +2218,14 @@
       
       if (okBtn) {
         console.log('Tatkal Sniper: Clicking OK on High Load error dialog.');
-        clickElement(okBtn);
+        await clickElement(okBtn);
       }
       
       // Reset the Last Clicked timer on all Book Now buttons so we can retry instantly
-      document.querySelectorAll('button[data-te-last-clicked], input[data-te-last-clicked], a[data-te-last-clicked]').forEach(el => {
-        el.dataset.teLastClicked = '0';
+      document.querySelectorAll('button, input, a').forEach(el => {
+        if (getElState(el, 'teLastClicked')) {
+          setElState(el, 'teLastClicked', '0');
+        }
       });
       
       // Wait briefly for dialog to close before continuing to click Book Now
@@ -2205,11 +2275,11 @@
       const isDisabled = bookBtn.disabled || bookBtn.classList.contains('disabled') || bookBtn.getAttribute('disabled') !== null;
       if (!isDisabled) {
         const now = Date.now();
-        const lastClicked = parseInt(bookBtn.dataset.teLastClicked || '0', 10);
+        const lastClicked = parseInt(getElState(bookBtn, 'teLastClicked') || '0', 10);
         if (now - lastClicked > 3000) {
-          bookBtn.dataset.teLastClicked = now.toString();
+          setElState(bookBtn, 'teLastClicked', now.toString());
           console.log('Tatkal Sniper: Booking button found and enabled. Clicking Book Now:', bookBtn);
-          clickElement(bookBtn);
+          await clickElement(bookBtn);
         }
       }
     }
@@ -2232,6 +2302,10 @@
     try {
       // Wait for any IRCTC loading spinners to clear before interacting with the page
       await waitForPageReady(5000);
+
+      // Cooling period: randomised human-like pause before starting page interaction
+      // Prevents timing-based bot detection (e.g. acting instantly on page load)
+      await humanDelay();
 
       switch (pageType) {
       case 'login':
@@ -2281,12 +2355,12 @@
 
   // ── Toast Notifications on IRCTC ─────────────────────────────────────────────
   const showContentToast = (msg, onRetry = null) => {
-    const existing = document.getElementById('te-toast');
+    const existing = document.getElementById('ng-toast-message-box');
     if (existing) existing.remove();
 
     const toast = document.createElement('div');
-    toast.id = 'te-toast';
-    toast.className = 'te-toast';
+    toast.id = 'ng-toast-message-box';
+    toast.className = 'ng-toast-message-box';
     toast.innerHTML = `<span>${msg}</span>`;
 
     if (onRetry) {
@@ -2383,6 +2457,27 @@
     }
   };
 
+  // ── Language Popup Auto-Dismiss ──────────────────────────────────────────────
+  // IRCTC shows a "Select your preferred language" modal on every visit.
+  // This function finds it and clicks English automatically.
+  let languageDismissed = false;
+  const dismissLanguagePopup = () => {
+    if (languageDismissed) return;
+
+    // Find a visible button whose trimmed text is exactly 'English'
+    const englishBtn = Array.from(document.querySelectorAll('button.btn-primary, button.btn'))
+      .find(btn => {
+        const text = btn.textContent.trim();
+        return text === 'English' && btn.offsetWidth > 0 && btn.offsetHeight > 0;
+      });
+
+    if (englishBtn) {
+      console.log('Tatkal Sniper: Language popup detected — selecting English.');
+      englishBtn.click();
+      languageDismissed = true;
+    }
+  };
+
   // Bootstrapping the live console UI
   createConsole();
 
@@ -2402,13 +2497,14 @@
       updateConsoleContent();
 
       // Clear highlight on new page
-      document.querySelectorAll('.te-highlight').forEach(el => el.classList.remove('te-highlight'));
+      document.querySelectorAll('.ng-element-focused').forEach(el => el.classList.remove('ng-element-focused'));
 
       // Delay slightly to let page render
       setTimeout(triggerAutoActions, 200);
     } else {
       // Even if URL didn't change, elements might have loaded dynamically.
       // We throttle calls to avoid freezing the tab.
+      dismissLanguagePopup(); // Always check — popup can appear on any IRCTC page load
       if (tatkalExpressActive) {
         throttledAutoActions();
       }
@@ -2441,7 +2537,31 @@
   setTimeout(() => {
     // Check if extension context is still valid
     if (!isContextValid()) return;
+    dismissLanguagePopup(); // Catch popup that appears immediately on page load
     updateConsoleContent();
     triggerAutoActions();
   }, 1000);
+
+  // Also attempt dismissal after a slightly longer delay in case of slow networks
+  setTimeout(dismissLanguagePopup, 3000);
+
+  // ── Session Keep-Alive ──────────────────────────────────────────────────────
+  // Silently pings a lightweight IRCTC asset every 3 minutes to keep the session
+  // alive while waiting for the Tatkal window to open. Does NOT fire during active
+  // booking to avoid interfering with in-progress form submissions.
+  setInterval(async () => {
+    if (!isContextValid()) return;
+    if (isFillingInProgress) return; // Don't interfere mid-booking
+    try {
+      await fetch('https://www.irctc.co.in/nget/assets/images/favicon.ico', {
+        method: 'HEAD',
+        mode: 'no-cors',
+        cache: 'no-store',
+        credentials: 'include' // include session cookies so the server registers activity
+      });
+      console.log('Tatkal Sniper: Keep-alive ping sent.');
+    } catch (e) {
+      // Silent fail — network errors should not interrupt the page
+    }
+  }, 3 * 60 * 1000); // every 3 minutes
 })();

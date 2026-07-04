@@ -524,6 +524,22 @@ body {
   transform: scale(1.1);
 }
 
+.btn-clone {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.2s ease, transform 0.2s ease;
+}
+
+.btn-clone:hover {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+  transform: scale(1.1);
+}
+
 /* Footer Actions */
 .footer {
   padding: 12px 20px;
@@ -555,6 +571,29 @@ body {
 .btn-save:hover {
   background: rgba(0, 0, 0, 0.1);
   border-color: rgba(0, 0, 0, 0.2);
+}
+
+.btn-reset {
+  flex: 0.7;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  padding: 11px 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.btn-reset:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.6);
 }
 
 .btn-primary {

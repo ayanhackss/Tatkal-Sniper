@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const addPassengerBtn = document.getElementById('addPassengerBtn');
   const passengersContainer = document.getElementById('passengersContainer');
   const saveBtn = document.getElementById('saveBtn');
+  const resetBtn = document.getElementById('resetBtn');
   const startBookingBtn = document.getElementById('startBookingBtn');
   const statusBadge = document.getElementById('statusBadge');
   const toast = document.getElementById('toast');
@@ -27,6 +28,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const confirmBerthsOnlyCheckbox = document.getElementById('confirmBerthsOnly');
   const autoFocusCaptchaCheckbox = document.getElementById('autoFocusCaptcha');
   const ghostModeCheckbox = document.getElementById('ghostMode');
+  const mouseSimulationCheckbox = document.getElementById('mouseSimulation');
+  const coolingMinInput = document.getElementById('coolingMin');
+  const coolingMaxInput = document.getElementById('coolingMax');
+  const coolingRangeLabel = document.getElementById('coolingRangeLabel');
 
   // Fix #9: Confirmation modal elements
   const confirmModal = document.getElementById('confirmModal');
@@ -131,9 +136,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     card.innerHTML = `
       <div class="passenger-card-header">
         <span class="passenger-num">Passenger #${cardIndex}</span>
-        <button type="button" class="btn-remove" title="Remove Passenger" aria-label="Remove passenger ${cardIndex}">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-        </button>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn-clone" title="Clone Passenger" aria-label="Clone passenger ${cardIndex}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+          <button type="button" class="btn-remove" title="Remove Passenger" aria-label="Remove passenger ${cardIndex}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
       </div>
       
       <div class="input-group">
@@ -194,6 +204,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     card.querySelector('.btn-remove').addEventListener('click', () => {
       card.remove();
       updatePassengerNumbers();
+    });
+
+    // Attach Clone Event — reads current values so edits are preserved before saving
+    card.querySelector('.btn-clone').addEventListener('click', () => {
+      const cloneData = {
+        name: card.querySelector('.passenger-name').value,
+        age: card.querySelector('.passenger-age').value,
+        gender: card.querySelector('.passenger-gender').value,
+        berth: card.querySelector('.passenger-berth').value,
+        food: card.querySelector('.passenger-food').value
+      };
+      createPassengerCard(cloneData);
     });
 
     if (atTop) {
@@ -436,6 +458,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           confirmBerthsOnlyCheckbox.checked = !!config.preferences.confirmBerthsOnly;
           autoFocusCaptchaCheckbox.checked = config.preferences.autoFocusCaptcha !== false;
           if (ghostModeCheckbox) ghostModeCheckbox.checked = !!config.preferences.ghostMode;
+          if (mouseSimulationCheckbox) mouseSimulationCheckbox.checked = !!config.preferences.mouseSimulation;
+          if (coolingMinInput) coolingMinInput.value = config.preferences.coolingMin ?? 600;
+          if (coolingMaxInput) coolingMaxInput.value = config.preferences.coolingMax ?? 1400;
+          if (coolingRangeLabel) coolingRangeLabel.textContent = `${coolingMinInput.value} – ${coolingMaxInput.value} ms`;
         }
 
         // Load passengers
@@ -496,7 +522,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         autoUpgrade: autoUpgradeCheckbox.checked,
         confirmBerthsOnly: confirmBerthsOnlyCheckbox.checked,
         autoFocusCaptcha: autoFocusCaptchaCheckbox.checked,
-        ghostMode: ghostModeCheckbox ? ghostModeCheckbox.checked : false
+        ghostMode: ghostModeCheckbox ? ghostModeCheckbox.checked : false,
+        mouseSimulation: mouseSimulationCheckbox ? mouseSimulationCheckbox.checked : false,
+        coolingMin: coolingMinInput ? parseInt(coolingMinInput.value, 10) : 600,
+        coolingMax: coolingMaxInput ? parseInt(coolingMaxInput.value, 10) : 1400
       }
     };
 
@@ -522,6 +551,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   saveBtn.addEventListener('click', saveConfig);
+
+  // ─── Live label update for cooling period sliders ─────────────────────────────
+  const updateCoolingLabel = () => {
+    if (coolingRangeLabel && coolingMinInput && coolingMaxInput) {
+      coolingRangeLabel.textContent = `${coolingMinInput.value} – ${coolingMaxInput.value} ms`;
+    }
+  };
+  if (coolingMinInput) coolingMinInput.addEventListener('input', updateCoolingLabel);
+  if (coolingMaxInput) coolingMaxInput.addEventListener('input', updateCoolingLabel);
+
+  // ─── Reset All Form Data ─────────────────────────────────────────────────────
+  resetBtn.addEventListener('click', async () => {
+    if (!confirm('Reset all saved data? This will clear all credentials, journey details, and passengers.')) return;
+
+    // Clear from storage
+    await chrome.storage.local.remove('tatkalExpressConfig');
+
+    // Reset credential fields
+    usernameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+
+    // Reset journey fields
+    fromStationInput.value = '';
+    toStationInput.value = '';
+    journeyDateInput.value = '';
+    trainNumberInput.value = '';
+    journeyClassSelect.value = '3A';
+    journeyQuotaSelect.value = 'GENERAL';
+
+    // Reset preferences
+    mobileNumberInput.value = '';
+    preferredPaymentSelect.value = 'UPI';
+    travelInsuranceSelect.value = 'YES';
+    autoUpgradeCheckbox.checked = false;
+    confirmBerthsOnlyCheckbox.checked = false;
+    autoFocusCaptchaCheckbox.checked = true;
+    ghostModeCheckbox.checked = false;
+    if (mouseSimulationCheckbox) mouseSimulationCheckbox.checked = false;
+    if (coolingMinInput) coolingMinInput.value = 600;
+    if (coolingMaxInput) coolingMaxInput.value = 1400;
+    updateCoolingLabel();
+
+    // Remove all passenger cards
+    passengersContainer.innerHTML = '';
+
+    showToast('All data cleared.');
+  });
 
   // ─── Fix #9: Booking Confirmation Modal ──────────────────────────────────────
   const buildModalSummary = () => {

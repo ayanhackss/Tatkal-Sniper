@@ -239,6 +239,29 @@
 
         <div class="checkbox-container">
           <label class="custom-checkbox">
+            <input type="checkbox" id="mouseSimulation">
+            <span class="checkmark"></span>
+            <span class="label-text">Mouse Simulation — glide cursor to buttons before clicking</span>
+          </label>
+        </div>
+
+        <div class="input-group" style="margin-top: 6px;">
+          <label for="coolingMin" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Cooling Period (page pause)</span>
+            <span id="coolingRangeLabel" style="font-size:0.78rem; color:var(--text-secondary); font-weight:500;">600 – 1400 ms</span>
+          </label>
+          <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+            <span style="font-size:0.72rem; color:var(--text-secondary); white-space:nowrap;">Min</span>
+            <input type="range" id="coolingMin" min="0" max="3000" step="100" value="600" style="flex:1;" aria-label="Minimum cooling delay">
+            <span style="font-size:0.72rem; color:var(--text-secondary); white-space:nowrap;">Max</span>
+            <input type="range" id="coolingMax" min="100" max="5000" step="100" value="1400" style="flex:1;" aria-label="Maximum cooling delay">
+          </div>
+          <p style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px; line-height:1.4;">Random pause injected before each page action. Higher = more human-like but slower.</p>
+        </div>
+
+
+        <div class="checkbox-container">
+          <label class="custom-checkbox">
             <input type="checkbox" id="autoFocusCaptcha" checked>
             <span class="checkmark"></span>
             <span class="label-text">Auto-focus Captcha input on login (Recommended)</span>
@@ -306,14 +329,31 @@
           <div class="tip-card warning">
             <div class="tip-card-title">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#f59e0b" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm0-4h-2V7h2v8z"/></svg>
-              Essential Tatkal Timings
+              🚄 AC Tatkal Guide (10:00 AM)
             </div>
-            <ul class="tips-list">
-              <li><strong>AC Classes (3A, 2A, 1A, 3E, CC)</strong>: Booking opens daily at <strong>10:00 AM</strong>.</li>
-              <li><strong>Non-AC Classes (SL, 2S)</strong>: Booking opens daily at <strong>11:00 AM</strong>.</li>
-              <li>Log in exactly <strong>1 to 2 minutes before</strong> (09:58 AM or 10:58 AM) to avoid session timeout.</li>
+            <ul class="tips-list font-sm">
+              <li><strong>Classes:</strong> 1A, 2A, 3A, 3E, CC — booking opens at <strong>10:00 AM</strong> sharp.</li>
+              <li>Log in by <strong>09:58 AM</strong> to avoid session timeout at the critical moment.</li>
+              <li>Keep your <strong>journey class set to AC class</strong> (e.g. 3A) and quota to <strong>TATKAL</strong> before starting.</li>
+              <li>AC Tatkal quota fills up extremely fast — every second counts. Use <strong>Ghost Mode OFF</strong> for maximum speed.</li>
+              <li>Pre-open your UPI app and be ready to approve payment instantly after captcha.</li>
             </ul>
           </div>
+
+          <div class="tip-card info">
+            <div class="tip-card-title">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#3b82f6" aria-hidden="true"><path d="M7 13h10v-2H7v2zm-2 4h14v-2H5v2zm2-8h10V7H7v2zm14-9H3C1.9 0 1 .9 1 2v18c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V2c0-1.1-.9-2-2-2z"/></svg>
+              🛏️ Sleeper Tatkal Guide (11:00 AM)
+            </div>
+            <ul class="tips-list font-sm">
+              <li><strong>Classes:</strong> SL, 2S — booking opens at <strong>11:00 AM</strong> sharp.</li>
+              <li>Log in by <strong>10:58 AM</strong> — same login window strategy as AC, just 1 hour later.</li>
+              <li>Set your <strong>journey class to SL</strong> and quota to <strong>TATKAL</strong> in the Journey tab before starting.</li>
+              <li>Sleeper Tatkal is cheaper but highly competitive on popular routes. Having <strong>fewer passengers (1–2)</strong> greatly increases success.</li>
+              <li>Sleeper Tatkal charges are lower, so <strong>UPI payment</strong> approval is near-instant — keep your phone ready.</li>
+            </ul>
+          </div>
+
 
           <div class="tip-card info">
             <div class="tip-card-title">
@@ -342,6 +382,10 @@
 
     <!-- Footer Actions -->
     <footer class="footer">
+      <button class="btn-reset" id="resetBtn" aria-label="Clear all saved form data">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+        Reset
+      </button>
       <button class="btn-save" id="saveBtn" aria-label="Save all details to browser storage">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
         Save Details
